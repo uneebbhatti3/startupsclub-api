@@ -42,7 +42,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
   app.enableCors({
     credentials: true,
-    origin: ["http://localhost:3000", "https://www.startupsclub.one/"],
+    origin: ["http://localhost:3000", "https://www.startupsclub.one"],
   });
   await app.listen(process.env.PORT ?? 8080);
 }
