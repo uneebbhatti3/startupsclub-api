@@ -1,0 +1,15 @@
+// Database schema for the StartupsClub API. Change it only through `npm run db:migrate`.
+// Prisma 7: the connection URL lives in prisma.config.ts, not here.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  // The NestJS app is CommonJS, so the generated client is emitted as CommonJS too.
+  moduleFormat        = "cjs"
+  // Extensionless relative imports, which Jest's resolver understands (it cannot map ".js" to ".ts").
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
