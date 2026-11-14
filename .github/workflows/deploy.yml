@@ -1,0 +1,118 @@
+# Runs only after a pull request has been merged (a push to integration or main).
+# integration -> staging, main -> production. Pull requests never deploy (see ci.yml).
+name: Deploy
+
+on:
+  push:
+    branches: [integration, main]
+
+permissions:
+  contents: read
+
+# One deploy at a time per branch; a newer push waits instead of cancelling a running deploy.
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: Checks
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  publish:
+    name: Publish image
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Work out the image name and tags
+        id: meta
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          if [ "$BRANCH" = "main" ]; then ENV_TAG=production; else ENV_TAG=staging; fi
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "env_tag=$ENV_TAG" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          build-args: APP_VERSION=${{ github.sha }}
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ github.sha }}
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.env_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: Migrate and deploy
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Secrets and variables come from the matching GitHub environment, so the same names
+    # hold staging values on integration and production values on main.
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    env:
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Generate the Prisma client
+        run: npm run db:generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      # Migrations run before the new version starts; every migration must be backward compatible.
+      - name: Apply database migrations
+        run: npm run db:deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Trigger the Render deploy
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          IMAGE_REF: ${{ needs.publish.outputs.image }}:${{ github.sha }}
+        run: |
+          ENCODED=$(jq -rn --arg v "$IMAGE_REF" '$v|@uri')
+          curl --fail-with-body -sS -X POST "${RENDER_DEPLOY_HOOK}&imgURL=${ENCODED}"
+          echo
+          echo "Deploy requested for $IMAGE_REF"
+
+      - name: Wait for the new version to answer
+        env:
+          HEALTH_URL: ${{ vars.HEALTH_URL }}
+          EXPECTED_VERSION: ${{ github.sha }}
+        run: |
+          for attempt in $(seq 1 40); do
+            VERSION=$(curl -fsS --max-time 20 "$HEALTH_URL" 2>/dev/null | jq -r '.data.version // empty' || true)
+            if [ "$VERSION" = "$EXPECTED_VERSION" ]; then
+              echo "Version $VERSION is live."
+              exit 0
+            fi
+            echo "Attempt $attempt/40: running version is '${VERSION:-no answer}', waiting..."
+            sleep 15
+          done
+          echo "::error::The new version did not answer within 10 minutes."
+          exit 1

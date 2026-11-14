@@ -1,0 +1,67 @@
+# Database — PostgreSQL with Prisma 7
+
+## 1. Packages (pinned to major version 7)
+
+| Package              | Kind | Why                                                    |
+| -------------------- | ---- | ------------------------------------------------------ |
+| `prisma`             | dev  | CLI: `generate`, `migrate`, `validate`.                |
+| `@prisma/client`     | prod | Runtime used by the generated client.                  |
+| `@prisma/adapter-pg` | prod | Driver adapter (required in Prisma 7).                 |
+| `pg`, `@types/pg`    | prod | PostgreSQL driver used by the adapter (types: dev).    |
+| `dotenv`             | prod | Prisma 7 no longer loads `.env`; we load it ourselves. |
+
+npm's `latest` tag for `prisma` points to a Prisma 8 release candidate. Always install with an
+explicit `@7.x` version. Prisma 8 is not approved (`docs/TRD.md` section 1).
+
+## 2. Files
+
+| File                           | Purpose                                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| `prisma/schema.prisma`         | Models, the `postgresql` datasource and the `prisma-client` generator.                   |
+| `prisma.config.ts`             | CLI config: schema path, migrations path and `DATABASE_URL` (via `dotenv/config`).       |
+| `prisma/migrations/`           | Migrations created by `npm run db:migrate`. Committed; never edited after being applied. |
+| `generated/prisma/`            | The generated client (project root). Git-ignored; rebuilt by `npm run db:generate`.      |
+| `src/prisma/prisma.service.ts` | The one `PrismaClient` in the app, built with the `PrismaPg` adapter.                    |
+| `src/prisma/prisma.module.ts`  | `@Global()` module that exports `PrismaService`; imported once in `AppModule`.           |
+
+## 3. Module format: CommonJS
+
+Prisma 7 ships ES-module-first, but the `prisma-client` generator accepts `moduleFormat = "cjs"`.
+We use that so NestJS, ts-jest and the build stay CommonJS, which avoids the ESM risk described in
+`docs/TRD.md` section 2.
+
+The client is generated at the project root (`generated/prisma`), outside `src/`. For that reason
+`tsconfig.build.json` uses `rootDir: "."` and includes both `src` and `generated`, and the build
+output keeps that layout: `dist/src/main.js` (the `entryFile` in `nest-cli.json`, `start:prod` and
+the Dockerfile `CMD`) and `dist/generated/prisma`. The Docker runtime image needs nothing extra.
+
+Import the client only through `PrismaService`. Inside the service, `PrismaClient` is imported
+from `../../generated/prisma/client`.
+
+## 4. Connection URL
+
+- `DATABASE_URL` is the only database variable. The app and the CLI both use it.
+- `PrismaService` reads `process.env.DATABASE_URL` and throws at startup if it is missing. It will
+  move to `@nestjs/config` when that is added.
+- Locally, `src/main.ts` and `prisma.config.ts` load `.env` through `dotenv/config`. Variables that
+  are already set (CI, Docker, Render) are never overridden.
+- End-to-end tests load `.env.test` (git-ignored) through `jest.setups.ts`, the `setupFiles` entry
+  in `test/jest-e2e.json`. Its `DATABASE_URL` must point at the `<POSTGRES_DB>_test` database
+  created by Docker Compose, never the development database. CI sets `DATABASE_URL` itself, and
+  `dotenv` never overrides a variable that is already set. Unit tests load no env file.
+
+## 5. Commands
+
+```bash
+docker compose up -d     # local PostgreSQL (and the _test database)
+npm run db:generate      # prisma generate; Prisma 7 never runs this for you
+npm run db:migrate       # prisma migrate dev; review the SQL before applying (AGENTS.md section 6)
+npm run db:deploy        # prisma migrate deploy; used by CI and the pipeline only
+npm run db:seed          # prisma db seed (no seed script yet)
+```
+
+Prisma 7 does not run `generate` or seeding after a migration. Run them explicitly.
+
+## 6. Current schema
+
+No models yet. The first model, the waitlist, is added with `docs/WAITLIST.md`.

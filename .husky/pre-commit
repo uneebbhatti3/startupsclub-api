@@ -1,0 +1,15 @@
+branch="$(git rev-parse --abbrev-ref HEAD)"
+
+if [ "$branch" = "main" ] || [ "$branch" = "integration" ]; then
+  echo "Commit blocked: do not commit directly to '$branch'."
+  echo "Create a branch named feature/<feature_name> from integration and open a pull request instead."
+  exit 1
+fi
+
+if ! echo "$branch" | grep -Eq '^feature/[a-z0-9]+(-[a-z0-9]+)*$'; then
+  echo "Commit blocked: branch '$branch' does not match feature/<feature_name> (lowercase letters, digits, hyphens)."
+  echo "Example: feature/waitlist-api. Rename with: git branch -m feature/<feature_name>"
+  exit 1
+fi
+
+npx lint-staged

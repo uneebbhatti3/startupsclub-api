@@ -1,0 +1,179 @@
+# Checks that must pass before a pull request can merge. Also reused by deploy.yml on every merge.
+# The job names below are the required status checks listed in docs/DEPLOYMENT.md section 3.
+name: CI
+
+on:
+  pull_request:
+    branches: [integration, main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Husky is for local commits only; never run it in CI.
+  HUSKY: "0"
+  # A throwaway value so `prisma generate` can load prisma.config.ts. Not a secret.
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+jobs:
+  branch-policy:
+    name: Branch policy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check source and target branches
+        # Branch names are attacker-controlled text: pass them through env, never inline.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$BASE_REF" in
+            main)
+              if [ "$HEAD_REF" != "integration" ]; then
+                echo "::error::Only 'integration' may be merged into 'main'."
+                exit 1
+              fi
+              ;;
+            integration)
+              if ! printf '%s' "$HEAD_REF" | grep -Eq '^feature/[a-z0-9-]+$'; then
+                echo "::error::Pull requests into 'integration' must come from 'feature/<name>' (lowercase letters, digits, hyphens)."
+                exit 1
+              fi
+              ;;
+          esac
+          echo "Branch policy OK."
+
+  quality:
+    name: Format, lint and types
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: The generated Prisma client must not be committed
+        run: |
+          if [ -n "$(git ls-files generated)" ]; then
+            echo "::error::The 'generated/' folder is committed. It is built in every run; remove it from Git."
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run test
+
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - name: Apply migrations to the throwaway database
+        run: npm run db:deploy
+      - run: npm run test:e2e
+
+  prisma:
+    name: Prisma checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Schema is valid
+        run: npx prisma validate
+      - name: Migrations apply to an empty database
+        run: npm run db:deploy
+      - name: Database matches schema.prisma (no drift)
+        # Exit code 2 means the migrations and the schema disagree.
+        run: npx prisma migrate diff --exit-code --from-config-datasource --to-schema prisma/schema.prisma
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run build
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the image (not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          build-args: APP_VERSION=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
