@@ -23,16 +23,15 @@
 
 ### Planned, not installed in phase 1
 
-| Area      | Choice                                                             | Phase  |
-| --------- | ------------------------------------------------------------------ | ------ |
-| Sign-in   | better-auth (email and password, Google)                           | 2      |
-| Queue     | Redis with BullMQ (host not chosen)                                | 4      |
-| GitHub    | GitHub App for ship-log suggestions                                | 4      |
-| LinkedIn  | "Share on LinkedIn" for posting                                    | 4      |
-| Email     | Provider not chosen                                                | 2 or 4 |
-| Events    | `@nestjs/event-emitter` between modules                            | 3      |
-| Real time | Socket.IO                                                          | 5      |
-| AI        | pgvector, model provider not chosen, Python service for prediction | 7      |
+| Area      | Choice                                                             | Phase |
+| --------- | ------------------------------------------------------------------ | ----- |
+| Sign-in   | better-auth (email and password, Google)                           | 2     |
+| Queue     | Redis with BullMQ (host not chosen)                                | 4     |
+| GitHub    | GitHub App for ship-log suggestions                                | 4     |
+| LinkedIn  | "Share on LinkedIn" for posting                                    | 4     |
+| Events    | `@nestjs/event-emitter` between modules                            | 3     |
+| Real time | Socket.IO                                                          | 5     |
+| AI        | pgvector, model provider not chosen, Python service for prediction | 7     |
 
 "Latest" versions are resolved at scaffold and recorded in `docs/PROGRESS.md`. Prisma stays on
 major version 7 (the owner's choice; Prisma 8 exists only as a release candidate at the time of
@@ -103,18 +102,20 @@ npx husky init
 
 ## 6. Environment variables (phase 1)
 
-| Name                                                                 | Secret?               | Purpose                                                                                                                                         |
-| -------------------------------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`                                                           | No                    | `development`, `test` or `production`.                                                                                                          |
-| `APP_ENV`                                                            | No                    | `local`, `staging` or `production` (used for Sentry and behaviour switches).                                                                    |
-| `PORT`                                                               | No                    | Port to listen on. Local `8000`; code fallback `8080` when unset; Render provides its own. The frontend runs on `3000`.                         |
-| `DATABASE_URL`                                                       | **Yes**               | The only database URL, used by the app and by Prisma migrations. On Neon use the **direct** (non-pooler) URL; see `docs/DATABASE.md` section 2. |
-| `CORS_ORIGINS`                                                       | No                    | Comma-separated list of allowed frontend origins.                                                                                               |
-| `SENTRY_DSN`                                                         | No (public by design) | Empty locally and in tests.                                                                                                                     |
-| `APP_VERSION`                                                        | No                    | Commit ID, set by the pipeline; reported by `/health` and Sentry.                                                                               |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` | **Yes** (local)       | Read by Docker Compose from `.env` for the local database only.                                                                                 |
+| Name                                                                 | Secret?               | Purpose                                                                                                                                                                |
+| -------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                                                           | No                    | `development`, `test` or `production`.                                                                                                                                 |
+| `APP_ENV`                                                            | No                    | `local`, `staging` or `production` (used for Sentry and behaviour switches).                                                                                           |
+| `PORT`                                                               | No                    | Port to listen on. Local `8000`; code fallback `8080` when unset; Render provides its own. The frontend runs on `3000`.                                                |
+| `DATABASE_URL`                                                       | **Yes**               | The only database URL, used by the app and by Prisma migrations. On Neon use the **direct** (non-pooler) URL; see `docs/DATABASE.md` section 2.                        |
+| `CORS_ORIGINS`                                                       | No                    | Comma-separated list of allowed frontend origins.                                                                                                                      |
+| `SENTRY_DSN`                                                         | No (public by design) | Empty locally and in tests.                                                                                                                                            |
+| `APP_VERSION`                                                        | No                    | Commit ID, set by the pipeline; reported by `/health` and Sentry.                                                                                                      |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `POSTGRES_PORT` | **Yes** (local)       | Read by Docker Compose from `.env` for the local database only.                                                                                                        |
+| `RESEND_WELCOME_TEMPLATE_ID`                                         | No                    | ID of the published Resend waitlist welcome template (variable `NAME`); its sender, subject and body are used as published. Required in local, staging and production. |
+| `RESEND_API_KEY`                                                     | **Yes**               | Resend API key (`re_...`), sending access for the `startupsclub.one` domain. Required in local, staging and production.                                                |
 
-Later phases add better-auth, Google, LinkedIn, GitHub, Redis, email and encryption-key variables.
+Later phases add better-auth, Google, LinkedIn, GitHub, Redis and encryption-key variables.
 Every variable is listed in `.env.example` with no value.
 
 ## 7. Cross-cutting behaviour (global, set in `main.ts` and `AppModule`)

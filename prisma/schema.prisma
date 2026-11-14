@@ -13,3 +13,25 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+/// What a waitlist signup describes themselves as. OTHER comes with free text in `roleOther`.
+enum WaitlistRole {
+  FOUNDER
+  DEVELOPER
+  OTHER
+
+  @@map("waitlist_role")
+}
+
+/// One waitlist signup. The service stores `email` trimmed and lowercased, so the unique
+/// constraint holds one row per address, and sets `roleOther` only when `role` is OTHER.
+model WaitlistEntry {
+  id        String       @id @default(cuid())
+  name      String       @db.VarChar(100)
+  email     String       @unique @db.VarChar(254)
+  role      WaitlistRole
+  roleOther String?      @map("role_other") @db.VarChar(50)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("waitlist_entries")
+}
