@@ -1,0 +1,50 @@
+# Local development services. Values come from .env (see .env.example); nothing is hard-coded.
+# The api service is optional: `docker compose --profile api up --build`.
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: startupsclub-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+    ports:
+      # Bound to localhost only, so the database is not reachable from the network.
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 18+ images keep data in a versioned folder under /var/lib/postgresql.
+      - db-data:/var/lib/postgresql
+      # Creates the separate "<POSTGRES_DB>_test" database on first start.
+      - ./docker/postgres/init-test-db.sh:/docker-entrypoint-initdb.d/init-test-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    profiles: ["api"]
+    build:
+      context: .
+      args:
+        APP_VERSION: local
+    container_name: startupsclub-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      APP_ENV: local
+      PORT: "8000"
+      # Inside Docker the database host is the service name "db", not localhost.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      SENTRY_DSN: ""
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  db-data:
