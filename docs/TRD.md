@@ -6,7 +6,7 @@
 | --------------- | --------------------------------------------- | -------------------------------------------------------------------------------- |
 | Framework       | NestJS (latest stable at scaffold) on Express | Modular monolith. Express, not Fastify (better-auth integration needs it later). |
 | Language        | TypeScript, `strict`                          | No `any`.                                                                        |
-| Runtime         | Node.js 22                                    | Prisma 7 needs 20.19 or newer and recommends 22.                                 |
+| Runtime         | Node.js 24 (24.9 or newer)                    | NestJS 12 is ESM-only; Jest can `require` ES modules only on Node 24.9+.         |
 | Package manager | npm                                           | Same as the frontend.                                                            |
 | Database        | PostgreSQL                                    | Docker `postgres:18-alpine` locally; Neon for staging and production.            |
 | ORM             | Prisma **7**                                  | ES module, driver adapter, `prisma.config.ts` (`docs/DATABASE.md`).              |

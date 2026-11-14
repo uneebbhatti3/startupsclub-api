@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Build stage: install everything, generate the Prisma client, compile ----
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 # Husky installs Git hooks; there is no Git repository in the image.
 ENV HUSKY=0
@@ -24,7 +24,7 @@ RUN test -f dist/src/main.js
 RUN npm prune --omit=dev
 
 # ---- Runtime stage: small, non-root, no secrets ----
-FROM node:22-alpine AS runtime
+FROM node:24-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 

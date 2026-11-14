@@ -52,3 +52,15 @@
 
 **Verified:** `db:generate`, `format:check`, `lint`, `typecheck`, `test` (3/3) and `build` all pass.
 **Not verified:** the `test:e2e` step of `ci:check`.
+
+## 2026-11-14 — Node 24 everywhere (`feature/setup`)
+
+**Why:** NestJS 12 (`@nestjs/common`, `@nestjs/core`, `@nestjs/testing`) is ESM-only. The project is
+CommonJS, so ts-jest turns test imports into `require`. Jest only allows `require` of an ES module on
+Node 24.9+. Local runs (Node 24.18) passed, but CI on Node 22 failed every suite before any test ran.
+
+**Done (owner approved the CI edit):** `node-version: 24` in `.github/workflows/ci.yml` (5 jobs) and
+`deploy.yml`, `node:24-alpine` in both Dockerfile stages, `"engines": { "node": ">=24.9" }` in
+`package.json`, and the runtime row in `docs/TRD.md`.
+
+**Not verified:** a CI run on Node 24 and the Docker image build (need a push).
