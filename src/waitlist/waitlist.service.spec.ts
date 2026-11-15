@@ -152,4 +152,14 @@ describe("WaitlistService", () => {
     );
     expect(String(warn.mock.calls[0]?.[0])).not.toContain("founder@example.com");
   });
+
+  it("returns the total number of signups", async () => {
+    const count = jest.fn().mockResolvedValue(7);
+    const service = new WaitlistService(
+      { count } as unknown as WaitlistRepository,
+      {} as unknown as MailService,
+    );
+
+    await expect(service.count()).resolves.toEqual({ count: 7 });
+  });
 });

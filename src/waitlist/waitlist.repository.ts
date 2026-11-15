@@ -44,4 +44,13 @@ export class WaitlistRepository {
       throw error;
     }
   }
+
+  /**
+   * Counts every waitlist entry.
+   *
+   * @returns The number of rows in `waitlist_entries`.
+   */
+  async count(): Promise<number> {
+    return this.prisma.waitlistEntry.count();
+  }
 }
