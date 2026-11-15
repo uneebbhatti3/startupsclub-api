@@ -34,6 +34,16 @@ Unknown fields are rejected.
 The 409 message is written to be shown to the user as is. The duplicate check is case-insensitive
 because emails are stored lowercased.
 
+### Count
+
+`GET /api/v1/waitlist/count`, public, global rate limit (100 requests a minute per client IP).
+Counts every row in `waitlist_entries`; returns only the total, never any entry.
+
+| Status | Body                                                |
+| ------ | --------------------------------------------------- |
+| 200    | `{ "data": { "count": 123 } }`                      |
+| 429    | `{ "error": { "code": "TOO_MANY_REQUESTS", ... } }` |
+
 ## 2. Code layout (`src/waitlist/`)
 
 | File                                 | Responsibility                                                                                                                    |
@@ -43,6 +53,7 @@ because emails are stored lowercased.
 | `waitlist.repository.ts`             | Database access only. `create()` returns `null` on a duplicate email (Prisma `P2002`), so the check is a single race-safe insert. |
 | `dto/create-waitlist-entry.dto.ts`   | Request validation and normalisation.                                                                                             |
 | `dto/waitlist-entry-response.dto.ts` | Response shape.                                                                                                                   |
+| `dto/waitlist-count-response.dto.ts` | Response shape of the count.                                                                                                      |
 
 ## 3. Welcome email
 
@@ -78,3 +89,8 @@ After a successful signup (never on a 409), the service starts the welcome email
 - Duplicates return **409** with "Already in the waitlist". This replaces the earlier "never reveal
   whether an email was registered" rule; it does let anyone check whether an email is registered.
 - Only `POST` for now; listing or exporting signups waits for authentication (phase 2).
+
+## 5. Decisions (owner, 2026-11-15)
+
+- `GET /api/v1/waitlist/count` is **public** (it exposes only a number), counts **all rows**, and
+  uses the **global** rate limit. Listing or exporting entries still waits for phase 2.
