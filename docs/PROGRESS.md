@@ -164,3 +164,22 @@ tests never call Resend.
 **Verified:** `format:check`, `lint`, `typecheck`, unit tests (48 of 49; the failure is
 `test/health-e2e.spec.ts`), e2e tests (10 of 10, including waitlist), `build`.
 **Not verified:** a real send through Resend (needs `RESEND_WELCOME_TEMPLATE_ID` in `.env`).
+
+## 2026-11-15 — Welcome email subject sent from code (`feature/waitlist`)
+
+The API sends `WAITLIST_WELCOME_SUBJECT` ("You're on the StartupsClub waitlist 🚀") with each
+email, which overrides the template's subject (Resend send API). Sender and body still come from the template. CORS: removed the trailing slash from
+`https://www.startupsclub.one` in `src/main.ts` (browsers send the origin without one).
+**Verified:** format, lint, typecheck, unit (48 of 49, `test/health-e2e.spec.ts` as before), e2e
+(10 of 10), build. **Not verified:** a real send after the change.
+
+## 2026-11-15 — Welcome email template back in the repo (`feature/waitlist`)
+
+**Decision (owner):** no Resend dashboard template; the email is a template in
+`src/mail/templates/` with the same formatting as the Resend design. Added `TemplateRenderer`
+(`{{key}}` placeholders, HTML escaping, missing values rejected); `MailService` renders and sends
+HTML and text through the `resend` package with `MAIL_FROM` and `WAITLIST_WELCOME_SUBJECT`.
+Removed `RESEND_WELCOME_TEMPLATE_ID`; `MAIL_FROM` is back; template assets copied again by
+`nest-cli.json`.
+**Verified:** format, lint, typecheck, unit (51 of 52, `test/health-e2e.spec.ts` as before), e2e
+(10 of 10), build (templates in `dist/src/mail/templates`). **Not verified:** a real send.

@@ -8,10 +8,11 @@ import {
   readMailSettings,
 } from "./mail.config";
 import { MailService } from "./mail.service";
+import { TemplateRenderer } from "./template-renderer";
 
 /**
  * Application-wide email (global), so any feature can inject `MailService`. The sender and
- * template IDs come from `mail.config.ts`; tests override `EmailSender`.
+ * settings come from `mail.config.ts`, templates from `templates/`; tests override `EmailSender`.
  *
  * @packageDocumentation
  */
@@ -22,6 +23,7 @@ import { MailService } from "./mail.service";
     { provide: EmailSender, useFactory: createEmailSender },
     { provide: MAIL_SETTINGS, useFactory: readMailSettings },
     { provide: MAIL_RETRY_DELAYS_MS, useValue: DEFAULT_RETRY_DELAYS_MS },
+    { provide: TemplateRenderer, useFactory: (): TemplateRenderer => new TemplateRenderer() },
     MailService,
   ],
   exports: [MailService],

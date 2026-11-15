@@ -1,17 +1,19 @@
 import { EmailSendError } from "./email-sender";
 import { InMemoryEmailSender } from "./in-memory-email.sender";
-import { MailService, escapeMarkup } from "./mail.service";
+import { MailService, WAITLIST_WELCOME_SUBJECT } from "./mail.service";
 import { isRetryable } from "./resend-email.sender";
+import { TemplateRenderer } from "./template-renderer";
 
 /**
- * Unit tests for {@link MailService} and the retry rules: what is sent to Resend, which failures
- * are retried, and that shutdown waits for sends in progress. Uses the in-memory sender with no
- * delays between attempts.
+ * Unit tests for {@link MailService} and the retry rules: what is sent, which failures are
+ * retried, and that shutdown waits for sends in progress. Uses the real templates and the
+ * in-memory sender with no delays between attempts.
  *
  * @packageDocumentation
  */
 
 const recipient = { entryId: "id-1", name: "Test Founder", email: "founder@example.com" };
+const FROM = "Startups Club <hello@example.com>";
 
 /**
  * Builds the service.
@@ -23,36 +25,28 @@ const recipient = { entryId: "id-1", name: "Test Founder", email: "founder@examp
 function buildService(sender: InMemoryEmailSender, retries = 3): MailService {
   return new MailService(
     sender,
-    { welcomeTemplateId: "template-id" },
+    new TemplateRenderer(),
+    { from: FROM },
     Array.from({ length: retries }, () => 0),
   );
 }
 
 describe("MailService", () => {
-  it("sends the welcome template with the NAME variable and an idempotency key", async () => {
+  it("sends the rendered welcome email with an idempotency key", async () => {
     const sender = new InMemoryEmailSender();
 
     await buildService(sender).sendWaitlistWelcome(recipient);
 
-    expect(sender.sent).toEqual([
-      {
-        to: "founder@example.com",
-        templateId: "template-id",
-        variables: { NAME: "Test Founder" },
-        idempotencyKey: "waitlist-welcome/id-1",
-      },
-    ]);
-  });
-
-  it("encodes angle brackets in the name", async () => {
-    const sender = new InMemoryEmailSender();
-
-    await buildService(sender).sendWaitlistWelcome({
-      ...recipient,
-      name: '<a href="https://evil.example">x</a>',
+    expect(sender.sent).toHaveLength(1);
+    const email = sender.sent[0];
+    expect(email).toMatchObject({
+      from: FROM,
+      to: "founder@example.com",
+      subject: WAITLIST_WELCOME_SUBJECT,
+      idempotencyKey: "waitlist-welcome/id-1",
     });
-
-    expect(sender.sent[0]?.variables.NAME).toBe('&lt;a href="https://evil.example"&gt;x&lt;/a&gt;');
+    expect(email?.html).toContain("Hi Test Founder,");
+    expect(email?.text).toContain("Hi Test Founder,");
   });
 
   it("retries a retryable failure and then succeeds", async () => {
@@ -101,17 +95,13 @@ describe("MailService", () => {
     const shutdown = service.onApplicationShutdown().then(() => {
       shutDown = true;
     });
-    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
     expect(shutDown).toBe(false);
 
     release();
     await send;
     await shutdown;
     expect(shutDown).toBe(true);
-  });
-
-  it("escapeMarkup leaves ordinary names alone", () => {
-    expect(escapeMarkup("Zoë O'Brien & Co")).toBe("Zoë O'Brien & Co");
   });
 });
 

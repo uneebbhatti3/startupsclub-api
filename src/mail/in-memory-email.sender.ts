@@ -1,5 +1,5 @@
 import { EmailSender } from "./email-sender";
-import type { TemplateEmail } from "./email-sender";
+import type { OutgoingEmail } from "./email-sender";
 
 /**
  * An email sender that keeps emails in memory: used in tests and CI (`APP_ENV` unset or
@@ -10,7 +10,7 @@ import type { TemplateEmail } from "./email-sender";
 
 export class InMemoryEmailSender extends EmailSender {
   /** Emails "sent" so far, oldest first. */
-  readonly sent: TemplateEmail[] = [];
+  readonly sent: OutgoingEmail[] = [];
   private readonly failures: Error[] = [];
 
   /**
@@ -27,7 +27,7 @@ export class InMemoryEmailSender extends EmailSender {
    *
    * @param email - The email.
    */
-  send(email: TemplateEmail): Promise<void> {
+  send(email: OutgoingEmail): Promise<void> {
     const failure = this.failures.shift();
     if (failure) {
       return Promise.reject(failure);
