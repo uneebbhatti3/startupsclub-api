@@ -7,6 +7,7 @@ import { PrismaService } from "../src/prisma/prisma.service";
 import { EmailSender } from "../src/mail/email-sender";
 import { InMemoryEmailSender } from "../src/mail/in-memory-email.sender";
 import { MAIL_RETRY_DELAYS_MS, MAIL_SETTINGS } from "../src/mail/mail.config";
+import { WAITLIST_WELCOME_SUBJECT } from "../src/mail/mail.service";
 
 /**
  * End-to-end tests for `POST /api/v1/waitlist` against the real `_test` database, with the same
@@ -45,7 +46,7 @@ describe("Waitlist (e2e)", () => {
       .overrideProvider(EmailSender)
       .useValue(mailbox)
       .overrideProvider(MAIL_SETTINGS)
-      .useValue({ welcomeTemplateId: "welcome-template" })
+      .useValue({ from: "Startups Club <waitlist@example.com>" })
       .overrideProvider(MAIL_RETRY_DELAYS_MS)
       .useValue([])
       .compile();
@@ -117,14 +118,14 @@ describe("Waitlist (e2e)", () => {
       .expect(201);
 
     await waitForMail(mailbox, 1);
-    expect(mailbox.sent).toEqual([
-      {
-        to: "mail@example.com",
-        templateId: "welcome-template",
-        variables: { NAME: "Test Mail" },
-        idempotencyKey: expect.stringMatching(/^waitlist-welcome\//),
-      },
-    ]);
+    expect(mailbox.sent).toHaveLength(1);
+    expect(mailbox.sent[0]).toMatchObject({
+      from: "Startups Club <waitlist@example.com>",
+      to: "mail@example.com",
+      subject: WAITLIST_WELCOME_SUBJECT,
+    });
+    expect(mailbox.sent[0]?.html).toContain("Hi Test Mail,");
+    expect(mailbox.sent[0]?.text).toContain("Hi Test Mail,");
   });
 
   it("201: the signup succeeds even when the email fails", async () => {

@@ -4,8 +4,8 @@ import { ResendEmailSender } from "./resend-email.sender";
 
 /**
  * Mail configuration from environment variables. Local, staging and production send real email
- * through Resend and refuse to start without `RESEND_API_KEY` and `RESEND_WELCOME_TEMPLATE_ID`.
- * Tests and CI (`APP_ENV` unset or `test`) keep emails in memory: nothing is sent or stored.
+ * through Resend and refuse to start without `RESEND_API_KEY` and `MAIL_FROM`. Tests and CI
+ * (`APP_ENV` unset or `test`) keep emails in memory: nothing is sent or stored.
  *
  * @packageDocumentation
  */
@@ -13,8 +13,11 @@ import { ResendEmailSender } from "./resend-email.sender";
 /** Environments that deliver real email. */
 const DELIVERING_ENVIRONMENTS = new Set(["local", "staging", "production"]);
 
-/** Template ID used where nothing is delivered, so tests need no Resend settings. */
-const NON_DELIVERING_TEMPLATE_ID = "waitlist-welcome";
+/** Display name inboxes show for the sender when `MAIL_FROM` is a bare address. */
+export const SENDER_NAME = "Startups Club";
+
+/** Sender used where nothing is delivered. `example.com` is reserved and never routes. */
+const NON_DELIVERING_FROM = "waitlist@example.com";
 
 /** Injection token for {@link MailSettings}. */
 export const MAIL_SETTINGS = Symbol("MAIL_SETTINGS");
@@ -25,10 +28,10 @@ export const MAIL_RETRY_DELAYS_MS = Symbol("MAIL_RETRY_DELAYS_MS");
 /** Three retries after the first attempt: 1s, 2s, then 4s later. */
 export const DEFAULT_RETRY_DELAYS_MS: readonly number[] = [1_000, 2_000, 4_000];
 
-/** Which Resend templates the app sends. */
+/** Settings shared by every email. */
 export interface MailSettings {
-  /** ID of the published waitlist welcome template; it uses the `NAME` variable. */
-  welcomeTemplateId: string;
+  /** Sender with display name, e.g. `Startups Club <hello@startupsclub.one>`. */
+  from: string;
 }
 
 /**
@@ -56,6 +59,18 @@ export function deliversMail(): boolean {
 }
 
 /**
+ * Turns `MAIL_FROM` into the sender. A bare address gets the {@link SENDER_NAME} display name,
+ * so inboxes show the company rather than the mailbox ("hello"); `Name <address>` is kept.
+ *
+ * @param value - The `MAIL_FROM` value.
+ * @returns The sender.
+ */
+export function toSender(value: string): string {
+  const trimmed = value.trim();
+  return trimmed.includes("<") ? trimmed : `${SENDER_NAME} <${trimmed}>`;
+}
+
+/**
  * Builds the sender for the current environment.
  *
  * @returns Resend in local, staging and production; in memory elsewhere.
@@ -67,14 +82,13 @@ export function createEmailSender(): EmailSender {
 }
 
 /**
- * Reads the template IDs.
+ * Reads the settings shared by every email.
  *
  * @returns The mail settings.
  */
 export function readMailSettings(): MailSettings {
-  return {
-    welcomeTemplateId: deliversMail()
-      ? required("RESEND_WELCOME_TEMPLATE_ID")
-      : process.env.RESEND_WELCOME_TEMPLATE_ID?.trim() || NON_DELIVERING_TEMPLATE_ID,
-  };
+  const from = deliversMail()
+    ? required("MAIL_FROM")
+    : process.env.MAIL_FROM?.trim() || NON_DELIVERING_FROM;
+  return { from: toSender(from) };
 }

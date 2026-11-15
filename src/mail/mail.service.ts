@@ -2,16 +2,21 @@ import { Inject, Injectable } from "@nestjs/common";
 import type { OnApplicationShutdown } from "@nestjs/common";
 import { setTimeout as sleep } from "node:timers/promises";
 import { EmailSendError, EmailSender } from "./email-sender";
-import type { TemplateEmail } from "./email-sender";
+import type { OutgoingEmail } from "./email-sender";
 import { MAIL_RETRY_DELAYS_MS, MAIL_SETTINGS } from "./mail.config";
 import type { MailSettings } from "./mail.config";
+import { TemplateRenderer } from "./template-renderer";
 
 /**
- * Sends the app's emails from Resend templates: retries failures that can pass on a later
- * attempt, and on shutdown waits for sends still in progress so a restart does not drop them.
+ * Sends the app's emails: renders a template from `src/mail/templates/`, retries failures that
+ * can pass on a later attempt, and on shutdown waits for sends still in progress so a restart
+ * does not drop them.
  *
  * @packageDocumentation
  */
+
+/** Subject of the waitlist welcome email. */
+export const WAITLIST_WELCOME_SUBJECT = "You're on the StartupsClub waitlist 🚀";
 
 /** Who the waitlist welcome email goes to. */
 export interface WaitlistWelcomeRecipient {
@@ -19,17 +24,6 @@ export interface WaitlistWelcomeRecipient {
   entryId: string;
   name: string;
   email: string;
-}
-
-/**
- * Neutralises markup in a template variable. Resend does not document whether it escapes
- * variable values, so `<` and `>` are encoded here: a name cannot add tags or links to the email.
- *
- * @param value - The raw value.
- * @returns The value with angle brackets encoded.
- */
-export function escapeMarkup(value: string): string {
-  return value.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 /**
@@ -48,30 +42,43 @@ export class MailService implements OnApplicationShutdown {
 
   constructor(
     private readonly sender: EmailSender,
+    private readonly templates: TemplateRenderer,
     @Inject(MAIL_SETTINGS) private readonly settings: MailSettings,
     @Inject(MAIL_RETRY_DELAYS_MS) private readonly retryDelaysMs: readonly number[],
   ) {}
 
   /**
-   * Sends the waitlist welcome email from the Resend template.
+   * Sends the waitlist welcome email (`templates/waitlist-welcome.html` and `.txt`).
    *
    * @param recipient - The new waitlist entry.
    * @returns Resolves once Resend accepts the email; rejects after the last failed attempt.
    */
   sendWaitlistWelcome(recipient: WaitlistWelcomeRecipient): Promise<void> {
-    return this.track(
-      this.sendWithRetry({
-        to: recipient.email,
-        templateId: this.settings.welcomeTemplateId,
-        variables: { NAME: escapeMarkup(recipient.name) },
-        idempotencyKey: `waitlist-welcome/${recipient.entryId}`,
-      }),
-    );
+    return this.track(this.sendWaitlistWelcomeNow(recipient));
   }
 
   /** Waits for sends still in progress (successful or not) before the process exits. */
   async onApplicationShutdown(): Promise<void> {
     await Promise.allSettled(this.pending);
+  }
+
+  /**
+   * Renders and sends the welcome email.
+   *
+   * @param recipient - The new waitlist entry.
+   */
+  private async sendWaitlistWelcomeNow(recipient: WaitlistWelcomeRecipient): Promise<void> {
+    const { html, text } = await this.templates.render("waitlist-welcome", {
+      name: recipient.name,
+    });
+    await this.sendWithRetry({
+      from: this.settings.from,
+      to: recipient.email,
+      subject: WAITLIST_WELCOME_SUBJECT,
+      html,
+      text,
+      idempotencyKey: `waitlist-welcome/${recipient.entryId}`,
+    });
   }
 
   /**
@@ -94,7 +101,7 @@ export class MailService implements OnApplicationShutdown {
    *
    * @param email - The email.
    */
-  private async sendWithRetry(email: TemplateEmail): Promise<void> {
+  private async sendWithRetry(email: OutgoingEmail): Promise<void> {
     for (let attempt = 0; ; attempt += 1) {
       try {
         await this.sender.send(email);
