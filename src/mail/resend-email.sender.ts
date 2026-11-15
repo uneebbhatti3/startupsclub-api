@@ -1,11 +1,10 @@
 import { Resend } from "resend";
 import { EmailSendError, EmailSender } from "./email-sender";
-import type { TemplateEmail } from "./email-sender";
+import type { OutgoingEmail } from "./email-sender";
 
 /**
- * Sends template emails through the Resend API. Only the recipient, template ID and variables
- * are sent: the published template supplies the sender, subject and body, so editing and
- * publishing it in Resend changes the email without a deploy.
+ * Sends finished emails (rendered from `src/mail/templates/`) through the Resend API. No Resend
+ * dashboard template is used.
  *
  * @packageDocumentation
  */
@@ -42,14 +41,20 @@ export class ResendEmailSender extends EmailSender {
   }
 
   /**
-   * Sends one email from a stored template.
+   * Sends one email.
    *
-   * @param email - Recipient, template and variables.
+   * @param email - The finished email.
    * @throws EmailSendError when Resend rejects the request.
    */
-  async send(email: TemplateEmail): Promise<void> {
+  async send(email: OutgoingEmail): Promise<void> {
     const { error } = await this.client.emails.send(
-      { to: email.to, template: { id: email.templateId, variables: email.variables } },
+      {
+        from: email.from,
+        to: email.to,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      },
       { idempotencyKey: email.idempotencyKey },
     );
     if (error) {

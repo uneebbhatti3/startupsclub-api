@@ -1,19 +1,20 @@
 /**
- * The contract for sending an email built from a template stored in Resend. `MailService`
- * depends on this abstract class (also the Nest injection token), so tests can swap in
+ * The contract for sending one finished email (HTML and plain text). `MailService` depends on
+ * this abstract class (also the Nest injection token), so tests can swap in
  * `InMemoryEmailSender` without touching the network.
  *
  * @packageDocumentation
  */
 
-/** One email rendered by the provider from a stored template. */
-export interface TemplateEmail {
+/** One email, ready to send. */
+export interface OutgoingEmail {
+  /** Sender, e.g. `Startups Club <hello@startupsclub.one>`. */
+  from: string;
   /** Recipient address. */
   to: string;
-  /** Template ID (or alias) in Resend. Its published version supplies sender, subject and body. */
-  templateId: string;
-  /** Values for the template's variables, keyed exactly as in the template (e.g. `NAME`). */
-  variables: Record<string, string>;
+  subject: string;
+  html: string;
+  text: string;
   /** Same key, same email: the provider sends it once even if the request is retried. */
   idempotencyKey: string;
 }
@@ -37,7 +38,7 @@ export class EmailSendError extends Error {
   }
 }
 
-/** Sends one template email; rejects with {@link EmailSendError} when the provider refuses it. */
+/** Sends one email; rejects with {@link EmailSendError} when the provider refuses it. */
 export abstract class EmailSender {
-  abstract send(email: TemplateEmail): Promise<void>;
+  abstract send(email: OutgoingEmail): Promise<void>;
 }

@@ -1,0 +1,21 @@
+StartupsClub
+
+Hi {{name}},
+
+Thanks for joining the StartupsClub waitlist. Your spot is saved.
+
+StartupsClub is a community for founders and developers who want to build consistently, not just when motivation strikes. You'll set goals, share progress and stay accountable alongside people who are building too.
+
+What happens next
+
+- We'll email you at this address as soon as access opens.
+- Waitlist members get in first, before we open to everyone.
+- Until then, we'll only send the occasional update that matters. No spam.
+
+One quick favour: reply to this email and tell us what you're building right now. We read every reply, and your answer will help shape StartupsClub around what builders actually need.
+
+See you inside,
+The StartupsClub team
+
+--
+You're receiving this because you joined the StartupsClub waitlist. If this wasn't you, you can ignore this email.

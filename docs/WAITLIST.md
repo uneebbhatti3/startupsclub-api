@@ -49,17 +49,16 @@ because emails are stored lowercased.
 After a successful signup (never on a 409), the service starts the welcome email through
 `MailService` (`src/mail/`) and returns the 201 without waiting for it.
 
-- **Template (owner's decision):** the email is the owner's **published Resend template**, sent by
-  ID (`RESEND_WELCOME_TEMPLATE_ID`) with the `resend` package. The template supplies the sender,
-  subject and body; the API sends only the recipient and the `NAME` variable. Editing and
-  publishing the template in Resend changes the email with no deploy. No copy of the template is
-  kept in this repository. If the template gains a variable, the API must send it too, or Resend
-  rejects the email.
-- **Name safety:** Resend does not document whether variable values are escaped, so `<` and `>`
-  in the name are encoded before sending.
+- **Template (owner's decision):** `src/mail/templates/waitlist-welcome.html` and `.txt`, written
+  in the repo with the same layout, styles and copy as the owner's Resend design, rendered by
+  `src/mail/template-renderer.ts` and copied to `dist/` by `nest-cli.json` `assets`. No Resend
+  dashboard template is used or fetched. `{{name}}` is HTML-escaped in the HTML part; a
+  placeholder without a value fails the send instead of going out as raw braces.
+- **Sent through Resend** with the `resend` package: sender `MAIL_FROM` (a bare address gets the
+  display name "Startups Club"), subject `WAITLIST_WELCOME_SUBJECT` in `src/mail/mail.service.ts`
+  ("You're on the StartupsClub waitlist 🚀"), HTML and plain text.
 - **Environments (`src/mail/mail.config.ts`):** Resend when `APP_ENV` is `local`, `staging` or
-  `production`; the app refuses to start if `RESEND_API_KEY` or `RESEND_WELCOME_TEMPLATE_ID` is
-  missing. Elsewhere an in-memory sender is used, and the Jest e2e setup forces `APP_ENV=test`,
+  `production`; the app refuses to start if `RESEND_API_KEY` or `MAIL_FROM` is missing. Elsewhere an in-memory sender is used, and the Jest e2e setup forces `APP_ENV=test`,
   so tests never send email. Sent emails are never stored on disk.
 - **Failures:** up to 3 retries (after 1s, 2s and 4s) for network errors, rate limits and Resend
   server errors, with an idempotency key per entry so a retry never sends twice. Other errors
