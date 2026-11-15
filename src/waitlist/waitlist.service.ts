@@ -2,6 +2,7 @@ import { ConflictException, Injectable, Logger } from "@nestjs/common";
 import { WaitlistRole } from "../../generated/prisma/client";
 import type { WaitlistEntry } from "../../generated/prisma/client";
 import type { CreateWaitlistEntryDto, WaitlistRoleValue } from "./dto/create-waitlist-entry.dto";
+import type { WaitlistCountResponseDto } from "./dto/waitlist-count-response.dto";
 import type { WaitlistEntryResponseDto } from "./dto/waitlist-entry-response.dto";
 import { EmailSendError } from "../mail/email-sender";
 import { MailService } from "../mail/mail.service";
@@ -93,6 +94,15 @@ export class WaitlistService {
 
     this.sendWelcomeEmail(entry);
     return toResponse(entry);
+  }
+
+  /**
+   * Returns how many people are on the waitlist. Only the total is exposed, never any entry.
+   *
+   * @returns The total number of signups.
+   */
+  async count(): Promise<WaitlistCountResponseDto> {
+    return { count: await this.repository.count() };
   }
 
   /**

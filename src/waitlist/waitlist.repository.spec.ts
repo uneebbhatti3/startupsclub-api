@@ -58,4 +58,12 @@ describe("WaitlistRepository", () => {
 
     await expect(buildRepository(create).create(input)).rejects.toBe(failure);
   });
+
+  it("counts every entry", async () => {
+    const count = jest.fn().mockResolvedValue(42);
+    const prisma = { waitlistEntry: { count } } as unknown as PrismaService;
+
+    await expect(new WaitlistRepository(prisma).count()).resolves.toBe(42);
+    expect(count).toHaveBeenCalledWith();
+  });
 });

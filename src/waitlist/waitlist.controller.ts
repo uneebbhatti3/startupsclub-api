@@ -1,8 +1,9 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post } from "@nestjs/common";
 import {
   ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiTooManyRequestsResponse,
@@ -10,12 +11,14 @@ import {
 import { Throttle } from "@nestjs/throttler";
 import { ErrorResponseDto } from "../common/dto/error-response.dto";
 import { CreateWaitlistEntryDto } from "./dto/create-waitlist-entry.dto";
+import { WaitlistCountEnvelopeDto } from "./dto/waitlist-count-response.dto";
 import { WaitlistEntryEnvelopeDto } from "./dto/waitlist-entry-response.dto";
 import { WaitlistService } from "./waitlist.service";
 
 /**
- * HTTP endpoint for joining the waitlist (`POST /api/v1/waitlist`). Public and rate limited;
- * validation happens in the DTO and business rules in `WaitlistService`.
+ * HTTP endpoints for the waitlist: joining it (`POST /api/v1/waitlist`, rate limited to 5 a
+ * minute) and reading the public total (`GET /api/v1/waitlist/count`, global rate limit).
+ * Validation happens in the DTO and business rules in `WaitlistService`.
  *
  * @packageDocumentation
  */
@@ -41,5 +44,13 @@ export class WaitlistController {
   @ApiTooManyRequestsResponse({ type: ErrorResponseDto, description: "TOO_MANY_REQUESTS" })
   async create(@Body() dto: CreateWaitlistEntryDto): Promise<WaitlistEntryEnvelopeDto> {
     return { data: await this.waitlistService.create(dto) };
+  }
+
+  @Get("count")
+  @ApiOperation({ summary: "Get the total number of waitlist signups" })
+  @ApiOkResponse({ type: WaitlistCountEnvelopeDto })
+  @ApiTooManyRequestsResponse({ type: ErrorResponseDto, description: "TOO_MANY_REQUESTS" })
+  async count(): Promise<WaitlistCountEnvelopeDto> {
+    return { data: await this.waitlistService.count() };
   }
 }

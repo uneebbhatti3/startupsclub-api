@@ -183,3 +183,12 @@ Removed `RESEND_WELCOME_TEMPLATE_ID`; `MAIL_FROM` is back; template assets copie
 `nest-cli.json`.
 **Verified:** format, lint, typecheck, unit (51 of 52, `test/health-e2e.spec.ts` as before), e2e
 (10 of 10), build (templates in `dist/src/mail/templates`). **Not verified:** a real send.
+
+## 2026-11-15 — Waitlist count endpoint (`feature/waitlist`)
+
+**Decision (owner):** `GET /api/v1/waitlist/count` returns `{ data: { count } }`, public, global
+rate limit, counts every row. Replaced the unfinished `getWaitlist` (it did not type-check) with
+`WaitlistRepository.count()` and `WaitlistService.count()`; added `WaitlistCountResponseDto`, unit
+tests and two e2e tests. `docs/WAITLIST.md` updated.
+**Verified:** format, lint, typecheck, unit (53 of 54, `test/health-e2e.spec.ts` as before), e2e
+(12 of 12), build.

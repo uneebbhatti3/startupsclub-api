@@ -173,4 +173,26 @@ describe("Waitlist (e2e)", () => {
 
     expect(res.body.error.code).toBe("TOO_MANY_REQUESTS");
   });
+
+  it("GET count 200: returns 0 for an empty waitlist", async () => {
+    const res = await request(app.getHttpServer()).get(`${URL}/count`).expect(200);
+
+    expect(res.body).toEqual({ data: { count: 0 } });
+  });
+
+  it("GET count 200: counts every signup", async () => {
+    const server = app.getHttpServer();
+    await request(server)
+      .post(URL)
+      .send({ name: "Test One", email: "one@example.com", role: "founder" })
+      .expect(201);
+    await request(server)
+      .post(URL)
+      .send({ name: "Test Two", email: "two@example.com", role: "other", roleOther: "Designer" })
+      .expect(201);
+
+    const res = await request(server).get(`${URL}/count`).expect(200);
+
+    expect(res.body).toEqual({ data: { count: 2 } });
+  });
 });
