@@ -1,4 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
+import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
 import { SkipThrottle } from "@nestjs/throttler";
 
 /** Shape returned by `GET /health`. The deploy pipeline reads `data.version`. */
@@ -16,6 +17,8 @@ export interface HealthResponse {
  * Not rate limited, because Render and Docker poll it.
  */
 @SkipThrottle()
+// Public: no sign-in needed.
+@AllowAnonymous()
 @Controller("health")
 export class HealthController {
   @Get()

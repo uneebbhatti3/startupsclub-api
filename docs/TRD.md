@@ -2,30 +2,30 @@
 
 ## 1. Stack
 
-| Area            | Choice                                        | Notes                                                                            |
-| --------------- | --------------------------------------------- | -------------------------------------------------------------------------------- |
-| Framework       | NestJS (latest stable at scaffold) on Express | Modular monolith. Express, not Fastify (better-auth integration needs it later). |
-| Language        | TypeScript, `strict`                          | No `any`.                                                                        |
-| Runtime         | Node.js 24 (24.9 or newer)                    | NestJS 12 is ESM-only; Jest can `require` ES modules only on Node 24.9+.         |
-| Package manager | npm                                           | Same as the frontend.                                                            |
-| Database        | PostgreSQL                                    | Docker `postgres:18-alpine` locally; Neon for staging and production.            |
-| ORM             | Prisma **7**                                  | ES module, driver adapter, `prisma.config.ts` (`docs/DATABASE.md`).              |
-| Validation      | `class-validator`, `class-transformer`        | NestJS default; global `ValidationPipe`.                                         |
-| Configuration   | `@nestjs/config` with a validated schema      | Fail fast on missing variables. Validation library TO CONFIRM.                   |
-| API docs        | `@nestjs/swagger` (OpenAPI)                   | Source of the frontend contract.                                                 |
-| Security        | `helmet`, `@nestjs/throttler`, strict CORS    |                                                                                  |
-| Monitoring      | Sentry (`@sentry/nestjs`)                     | Errors, traces, releases (`docs/MONITORING.md`).                                 |
-| Testing         | Jest, Supertest                               | Unit and end-to-end (`docs/TESTING.md`).                                         |
-| Quality         | ESLint, Prettier, Husky, lint-staged          |                                                                                  |
-| Containers      | Docker, Docker Compose                        | Compose for the local database; a Dockerfile for the API image.                  |
-| CI/CD           | GitHub Actions                                | Checks, image build and publish to GitHub Container Registry, deploy.            |
-| Hosting         | Render (free plan)                            | Two services: staging (`integration`) and production (`main`).                   |
+| Area            | Choice                                          | Notes                                                                            |
+| --------------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| Framework       | NestJS (latest stable at scaffold) on Express   | Modular monolith. Express, not Fastify (better-auth integration needs it later). |
+| Language        | TypeScript, `strict`                            | No `any`.                                                                        |
+| Runtime         | Node.js 24 (24.9 or newer)                      | NestJS 12 is ESM-only; Jest can `require` ES modules only on Node 24.9+.         |
+| Package manager | npm                                             | Same as the frontend.                                                            |
+| Database        | PostgreSQL                                      | Docker `postgres:18-alpine` locally; Neon for staging and production.            |
+| ORM             | Prisma **7**                                    | ES module, driver adapter, `prisma.config.ts` (`docs/DATABASE.md`).              |
+| Validation      | `class-validator`, `class-transformer`          | NestJS default; global `ValidationPipe`.                                         |
+| Configuration   | `@nestjs/config` with a validated schema        | Fail fast on missing variables. Validation library TO CONFIRM.                   |
+| API docs        | `@nestjs/swagger` (OpenAPI)                     | Source of the frontend contract.                                                 |
+| Security        | `helmet`, `@nestjs/throttler`, strict CORS      |                                                                                  |
+| Monitoring      | Sentry (`@sentry/nestjs`)                       | Errors, traces, releases (`docs/MONITORING.md`).                                 |
+| Testing         | Jest, Supertest                                 | Unit and end-to-end (`docs/TESTING.md`).                                         |
+| Quality         | ESLint, Prettier, Husky, lint-staged            |                                                                                  |
+| Containers      | Docker, Docker Compose                          | Compose for the local database; a Dockerfile for the API image.                  |
+| CI/CD           | GitHub Actions                                  | Checks, image build and publish to GitHub Container Registry, deploy.            |
+| Hosting         | Render (free plan)                              | Two services: staging (`integration`) and production (`main`).                   |
+| Sign-in         | better-auth 1.7, `@thallesp/nestjs-better-auth` | Email and password (verified email) and GitHub. `docs/AUTH.md`.                  |
 
 ### Planned, not installed in phase 1
 
 | Area      | Choice                                                             | Phase |
 | --------- | ------------------------------------------------------------------ | ----- |
-| Sign-in   | better-auth (email and password, Google)                           | 2     |
 | Queue     | Redis with BullMQ (host not chosen)                                | 4     |
 | GitHub    | GitHub App for ship-log suggestions                                | 4     |
 | LinkedIn  | "Share on LinkedIn" for posting                                    | 4     |
@@ -115,7 +115,9 @@ npx husky init
 | `MAIL_FROM`                                                          | No                    | Sender on the verified domain, e.g. `Startups Club <hello@startupsclub.one>`; a bare address gets the display name "Startups Club". Required in local, staging and production. |
 | `RESEND_API_KEY`                                                     | **Yes**               | Resend API key (`re_...`), sending access for the `startupsclub.one` domain. Required in local, staging and production.                                                        |
 
-Later phases add better-auth, Google, LinkedIn, GitHub, Redis and encryption-key variables.
+Authentication adds `BETTER_AUTH_SECRET` (**secret**), `BETTER_AUTH_URL`, `GITHUB_CLIENT_ID` and
+`GITHUB_CLIENT_SECRET` (**secret**); see `docs/AUTH.md` section 5. Later phases add LinkedIn,
+Redis and encryption-key variables.
 Every variable is listed in `.env.example` with no value.
 
 ## 7. Cross-cutting behaviour (global, set in `main.ts` and `AppModule`)

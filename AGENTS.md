@@ -133,8 +133,10 @@ signature. Logs and Sentry events carry opaque IDs only.
 ## 11. Current phase
 
 **Phase 1: project foundation, pipeline and the waitlist API** (`docs/WAITLIST.md`,
-`docs/ROADMAP.md`). better-auth, Redis and BullMQ, LinkedIn, GitHub and the AI layer are designed
-but **not installed yet**. Do not add them until the owner starts that phase.
+`docs/ROADMAP.md`), plus authentication started by the owner on 2026-11-17: better-auth with
+email and password and GitHub sign-in (`docs/AUTH.md`). Redis and BullMQ, LinkedIn, the GitHub
+App and the AI layer are designed but **not installed yet**. Do not add them until the owner
+starts that phase.
 
 ## 12. Document map
 
@@ -146,7 +148,7 @@ but **not installed yet**. Do not add them until the owner starts that phase.
 | Endpoints and response rules      | `docs/API_CONVENTIONS.md`                                |
 | Database and migrations           | `docs/DATABASE.md`                                       |
 | Phase 1 feature                   | `docs/WAITLIST.md`                                       |
-| Sign-in (later phase)             | `docs/AUTH.md`                                           |
+| Sign-in                           | `docs/AUTH.md`                                           |
 | LinkedIn and GitHub (later phase) | `docs/INTEGRATIONS.md`                                   |
 | Scheduled work (later phase)      | `docs/JOBS.md`                                           |
 | Tests                             | `docs/TESTING.md`                                        |
