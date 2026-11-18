@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import { AllowAnonymous } from "@thallesp/nestjs-better-auth";
 import {
   ApiBadRequestResponse,
   ApiConflictResponse,
@@ -27,6 +28,8 @@ import { WaitlistService } from "./waitlist.service";
 const SIGNUPS_PER_MINUTE = 5;
 
 @ApiTags("waitlist")
+// Public: no sign-in needed.
+@AllowAnonymous()
 @Controller({ path: "waitlist", version: "1" })
 export class WaitlistController {
   constructor(private readonly waitlistService: WaitlistService) {}

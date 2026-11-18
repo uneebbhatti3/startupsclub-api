@@ -1,6 +1,6 @@
 import { EmailSendError } from "./email-sender";
 import { InMemoryEmailSender } from "./in-memory-email.sender";
-import { MailService, WAITLIST_WELCOME_SUBJECT } from "./mail.service";
+import { EMAIL_VERIFICATION_SUBJECT, MailService, WAITLIST_WELCOME_SUBJECT } from "./mail.service";
 import { isRetryable } from "./resend-email.sender";
 import { TemplateRenderer } from "./template-renderer";
 
@@ -47,6 +47,32 @@ describe("MailService", () => {
     });
     expect(email?.html).toContain("Hi Test Founder,");
     expect(email?.text).toContain("Hi Test Founder,");
+  });
+
+  it("sends the verification email with the link and a hashed-token idempotency key", async () => {
+    const sender = new InMemoryEmailSender();
+    const url = "http://localhost:8080/api/auth/verify-email?token=fake.jwt.token";
+
+    await buildService(sender).sendEmailVerification({
+      userId: "user-1",
+      name: "Test Founder",
+      email: "founder@example.com",
+      url,
+      token: "fake.jwt.token",
+    });
+
+    expect(sender.sent).toHaveLength(1);
+    const email = sender.sent[0];
+    expect(email).toMatchObject({
+      from: FROM,
+      to: "founder@example.com",
+      subject: EMAIL_VERIFICATION_SUBJECT,
+    });
+    expect(email?.idempotencyKey).toMatch(/^email-verification\/user-1\/[0-9a-f]{64}$/);
+    expect(email?.idempotencyKey).not.toContain("fake.jwt.token");
+    expect(email?.html).toContain("Hi Test Founder,");
+    expect(email?.html).toContain(`href="${url}"`);
+    expect(email?.text).toContain(url);
   });
 
   it("retries a retryable failure and then succeeds", async () => {

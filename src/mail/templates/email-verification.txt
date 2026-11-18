@@ -1,0 +1,12 @@
+StartupsClub
+
+Hi {{name}},
+
+Confirm your email address to finish creating your StartupsClub account:
+
+{{url}}
+
+This link expires in one hour.
+
+--
+You're receiving this because someone signed up for StartupsClub with this address. If this wasn't you, you can ignore this email.

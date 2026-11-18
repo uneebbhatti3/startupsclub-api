@@ -192,3 +192,38 @@ rate limit, counts every row. Replaced the unfinished `getWaitlist` (it did not 
 tests and two e2e tests. `docs/WAITLIST.md` updated.
 **Verified:** format, lint, typecheck, unit (53 of 54, `test/health-e2e.spec.ts` as before), e2e
 (12 of 12), build.
+
+## 2026-11-17 — Authentication: email and password, GitHub (`feature/waitlist`)
+
+**Done**
+
+- `better-auth` 1.7.25 declared as a dependency (it was only transitive) next to
+  `@thallesp/nestjs-better-auth` 2.8.0. Followed the better-auth NestJS guide; option names checked
+  against the 1.7.25 type definitions in `node_modules`.
+- `src/auth/auth.ts` (`buildAuthOptions`, `createAuth`) and `src/auth/auth.config.ts`
+  (`readAuthSettings`); `AuthModule.forRootAsync` in `app.module.ts`, built from the single
+  `PrismaService` and `MailService`. Routes under `/api/auth/*` (`docs/AUTH.md`).
+- Global `AuthGuard`; `@AllowAnonymous()` on `AppController`, `HealthController` and
+  `WaitlistController`.
+- `src/common/allowed-origins.ts` shared by CORS (`main.ts`) and `trustedOrigins`.
+- Email verification email: `src/mail/templates/email-verification.html` and `.txt`,
+  `MailService.sendEmailVerification` (idempotency key uses a SHA-256 of the token).
+- Prisma models `User`, `Session`, `Account`, `Verification`; migration
+  `20261117164155_add_auth_tables` (new tables only, backward compatible), SQL approved by the
+  owner and applied to the local development database. Running `migrate dev` also applied the
+  pending `add_waitlist_entries` migration to the local development database.
+- GitHub OAuth tokens encrypted at rest; better-auth telemetry off.
+- `.env.example`: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GITHUB_CLIENT_ID`,
+  `GITHUB_CLIENT_SECRET`. Docs: `docs/AUTH.md`, `docs/DECISIONS.md` (new), `docs/DATABASE.md`,
+  `docs/TRD.md`, `AGENTS.md` section 11.
+- Tests: `src/auth/auth.config.spec.ts`, `src/auth/auth.spec.ts`, verification email in
+  `src/mail/mail.service.spec.ts`, `test/auth.e2e-spec.ts` (sign-up, verification, sign-in,
+  session, wrong password, short password, GitHub authorize URL, untrusted callback).
+
+**Decisions (owner):** see `docs/DECISIONS.md`, 2026-11-17.
+
+**Verified:** `format:check`, `lint`, `typecheck`, unit tests (61 of 62; the failure is
+`test/health-e2e.spec.ts` as before), `build` (templates in `dist/src/mail/templates`).
+**Not verified:** `test:e2e` (the `_test` database needs the new migration), a booted app with
+real settings, a real GitHub sign-in, a real verification email.
+**Open:** cookie attributes for staging and production (`docs/AUTH.md` section 6).

@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { OnApplicationShutdown } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { EmailSendError, EmailSender } from "./email-sender";
 import type { OutgoingEmail } from "./email-sender";
@@ -26,6 +27,21 @@ export interface WaitlistWelcomeRecipient {
   email: string;
 }
 
+/** Subject of the email verification email. */
+export const EMAIL_VERIFICATION_SUBJECT = "Verify your email for StartupsClub";
+
+/** Who the email verification email goes to. */
+export interface EmailVerificationRecipient {
+  /** The user id; with the token, makes the send idempotent. */
+  userId: string;
+  name: string;
+  email: string;
+  /** The better-auth verification link (carries the token). */
+  url: string;
+  /** The verification token in `url`. */
+  token: string;
+}
+
 /**
  * Whether an error is worth another attempt.
  *
@@ -34,6 +50,16 @@ export interface WaitlistWelcomeRecipient {
  */
 function isRetryableError(error: unknown): boolean {
   return error instanceof EmailSendError ? error.retryable : true;
+}
+
+/**
+ * Hashes a token for use in an idempotency key.
+ *
+ * @param token - The verification token.
+ * @returns Its SHA-256 hex digest.
+ */
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 @Injectable()
@@ -57,6 +83,16 @@ export class MailService implements OnApplicationShutdown {
     return this.track(this.sendWaitlistWelcomeNow(recipient));
   }
 
+  /**
+   * Sends the email verification link (`templates/email-verification.html` and `.txt`).
+   *
+   * @param recipient - The user and the better-auth verification URL.
+   * @returns Resolves once Resend accepts the email; rejects after the last failed attempt.
+   */
+  sendEmailVerification(recipient: EmailVerificationRecipient): Promise<void> {
+    return this.track(this.sendEmailVerificationNow(recipient));
+  }
+
   /** Waits for sends still in progress (successful or not) before the process exits. */
   async onApplicationShutdown(): Promise<void> {
     await Promise.allSettled(this.pending);
@@ -78,6 +114,28 @@ export class MailService implements OnApplicationShutdown {
       html,
       text,
       idempotencyKey: `waitlist-welcome/${recipient.entryId}`,
+    });
+  }
+
+  /**
+   * Renders and sends the verification email. The idempotency key uses the token, so a resend
+   * (a new token) is a new email while a retry of the same send is not.
+   *
+   * @param recipient - The user and the verification URL.
+   */
+  private async sendEmailVerificationNow(recipient: EmailVerificationRecipient): Promise<void> {
+    const { html, text } = await this.templates.render("email-verification", {
+      name: recipient.name,
+      url: recipient.url,
+    });
+    await this.sendWithRetry({
+      from: this.settings.from,
+      to: recipient.email,
+      subject: EMAIL_VERIFICATION_SUBJECT,
+      html,
+      text,
+      // The token is a long JWT; its hash keeps the key short (Resend allows 256 chars) and opaque.
+      idempotencyKey: `email-verification/${recipient.userId}/${hashToken(recipient.token)}`,
     });
   }
 

@@ -6,6 +6,7 @@ import type { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { configureApp } from "./common/app-setup";
+import { ALLOWED_ORIGINS } from "./common/allowed-origins";
 
 /**
  * Application entry point: loads local environment variables, applies the shared HTTP setup,
@@ -34,7 +35,11 @@ function setupSwagger(app: NestExpressApplication): void {
 }
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    // better-auth reads the raw body on /api/auth/*; AuthModule re-adds the JSON and form
+    // parsers for every other route.
+    bodyParser: false,
+  });
   configureApp(app);
   setupSwagger(app);
   // On SIGTERM (a Render restart or deploy), let shutdown hooks run: emails still being sent
@@ -42,7 +47,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
   app.enableCors({
     credentials: true,
-    origin: ["http://localhost:3000", "https://www.startupsclub.one"],
+    origin: [...ALLOWED_ORIGINS],
   });
   await app.listen(process.env.PORT ?? 8080);
 }
